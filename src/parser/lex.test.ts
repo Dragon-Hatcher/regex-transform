@@ -3,26 +3,22 @@ import { Lexer, TokenType } from "./lex";
 describe("lexer tests", () => {
     test("simple lexing", () => {
         let lexer = new Lexer("a(b?c)*d|e");
+        let tokens = lexer.getTokens();
 
-        expect(lexer.isEOF()).toBe(false);
+        expect(tokens.length).toBe(11);
 
-        expect(lexer.peek().type).toBe(TokenType.LITERAL);
-        expect(lexer.pop().type).toBe(TokenType.LITERAL);
-        expect(lexer.pop().type).toBe(TokenType.L_PAREN);
-        expect(lexer.pop().type).toBe(TokenType.LITERAL);
-        expect(lexer.pop().type).toBe(TokenType.QUESTION);
-        expect(lexer.pop().type).toBe(TokenType.LITERAL);
-        expect(lexer.pop().type).toBe(TokenType.R_PAREN);
-        expect(lexer.pop().type).toBe(TokenType.STAR);
-        expect(lexer.pop().type).toBe(TokenType.LITERAL);
-        expect(lexer.pop().type).toBe(TokenType.BAR);
-        expect(lexer.peek().type).toBe(TokenType.LITERAL);
+        expect(tokens[0].type).toBe(TokenType.LITERAL);
+        expect(tokens[1].type).toBe(TokenType.L_PAREN);
+        expect(tokens[2].type).toBe(TokenType.LITERAL);
+        expect(tokens[3].type).toBe(TokenType.QUESTION);
+        expect(tokens[4].type).toBe(TokenType.LITERAL);
+        expect(tokens[5].type).toBe(TokenType.R_PAREN);
+        expect(tokens[6].type).toBe(TokenType.STAR);
+        expect(tokens[7].type).toBe(TokenType.LITERAL);
+        expect(tokens[8].type).toBe(TokenType.BAR);
+        expect(tokens[9].type).toBe(TokenType.LITERAL);
+        expect(tokens[10].type).toBe(TokenType.EOF);
 
-        expect(lexer.isEOF()).toBe(false);
-        expect(lexer.pop().type).toBe(TokenType.LITERAL);
-
-        expect(lexer.isEOF()).toBe(true);
-        expect(lexer.peek()).toBe(null);
-        expect(lexer.pop()).toBe(null);
+        expect(lexer.getTokens()).toEqual(tokens);
     });
 });
