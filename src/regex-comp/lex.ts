@@ -31,7 +31,7 @@ export class Token {
     }
 
     public get literal(): string {
-        return this._literal;
+        return this._literal!;
     }
 }
 
@@ -48,7 +48,7 @@ export class Lexer {
     public getTokens(): Token[] {
         while (!this.isEOF()) {
             let token = this.pop();
-            this.tokens.push(token);
+            this.tokens.push(token!);
         }
 
         if (this.tokens.length == 0 || this.tokens[this.tokens.length - 1].type != TokenType.EOF) {

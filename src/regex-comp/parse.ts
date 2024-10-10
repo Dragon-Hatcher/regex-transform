@@ -65,7 +65,7 @@ export class Parser {
     }
 
     private parseConcatenation(): Pattern {
-        let patterns = [];
+        let patterns: Pattern[] = [];
 
         let next = this.parsePostfix();
         while (!(next instanceof EmptyPattern)) {
