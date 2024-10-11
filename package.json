@@ -27,5 +27,8 @@
     },
     "lint-staged": {
         "*.{ts,js}": "prettier --write"
+    },
+    "dependencies": {
+        "immutable": "^4.3.7"
     }
 }

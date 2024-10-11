@@ -1,20 +1,23 @@
+import { IDGenerator } from "../../util/ids";
 import { NFACharClass } from "./nfa-char-class";
+import { Set, Map } from "immutable";
 
 export class NFAState {
-    private _nfa: NFA;
+    private _id: number;
+
     private _accept: boolean;
     private _start: boolean;
 
-    private _transitions: Map<NFAState, NFATransitionCondition> = new Map();
-    _epsilonTransitions: Set<NFAState> = new Set();
-    _incomingTransitions: Set<NFAState> = new Set();
+    private _transitions: Map<NFAState, NFATransitionCondition> = Map();
+    private _epsilonTransitions: Set<NFAState> = Set();
+    private _incomingTransitions: Set<NFAState> = Set();
 
-    constructor(nfa: NFA) {
-        this._nfa = nfa;
+    constructor(id: number) {
+        this._id = id;
     }
 
-    get nfa(): NFA {
-        return this._nfa;
+    get id(): number {
+        return this._id;
     }
     get accept(): boolean {
         return this._accept;
@@ -22,67 +25,50 @@ export class NFAState {
     get start(): boolean {
         return this._start;
     }
+    get transitions(): Map<NFAState, NFATransitionCondition> {
+        return this._transitions;
+    }
+    get epsilonTransitions(): Set<NFAState> {
+        return this._epsilonTransitions;
+    }
 
     set accept(accept: boolean) {
         this._accept = accept;
-        if (accept) {
-            this._nfa._acceptStates.add(this);
-        } else {
-            this._nfa._acceptStates.delete(this);
-        }
     }
 
     set start(start: boolean) {
         this._start = start;
-        if (start) {
-            this._nfa._startStates.add(this);
-        } else {
-            this._nfa._startStates.delete(this);
-        }
     }
 
     addTransitionTo(to: NFAState, condition: NFATransitionCondition) {
-        this._transitions.set(to, condition);
-        to._incomingTransitions.add(this);
+        this._transitions = this._transitions.set(to, condition);
+        to._incomingTransitions = to._incomingTransitions.add(this);
 
-        if (condition.isEpsilon) {
-            this._epsilonTransitions.add(to);
-        } else {
-            this._epsilonTransitions.delete(to);
-        }
+        this._epsilonTransitions = condition.isEpsilon
+            ? this._epsilonTransitions.add(to)
+            : this._epsilonTransitions.delete(to);
     }
 
     transitionsOn(char: string): Set<NFAState> {
-        let states = new Set<NFAState>();
-        for (let [to, on] of this._transitions) {
-            if (on.matchesChar(char)) {
-                states.add(to);
-            }
-        }
-        return states;
+        return this._transitions
+            .filter((on, _) => on.matchesChar(char))
+            .map((_, to) => to)
+            .toSet();
     }
 
     get epsilonClosure(): Set<NFAState> {
-        let set = new Set<NFAState>();
-        let toVisit: NFAState[] = [this];
+        return Set<NFAState>().withMutations((reachable) => {
+            let border: NFAState[] = [this];
 
-        while (toVisit.length > 0) {
-            let next = toVisit.shift()!;
-            set.add(next);
+            while (border.length > 0) {
+                let next = border.pop()!;
+                reachable.add(next);
 
-            for (let e of next._epsilonTransitions) {
-                if (!set.has(e)) {
-                    set.add(e);
-                    toVisit.push(e);
+                for (let e of next.epsilonTransitions) {
+                    if (!reachable.has(e)) border.push(e);
                 }
             }
-        }
-
-        return set;
-    }
-
-    get transitions(): Map<NFAState, NFATransitionCondition> {
-        return this._transitions;
+        });
     }
 }
 
@@ -116,70 +102,43 @@ export class NFATransitionCondition {
 }
 
 export class NFA {
-    _states: NFAState[] = [];
-    _acceptStates: Set<NFAState> = new Set();
-    _startStates: Set<NFAState> = new Set();
+    private _ids = new IDGenerator();
+    private _states: Set<NFAState> = Set();
 
     newState(): NFAState {
-        let state = new NFAState(this);
-        this._states.push(state);
+        let state = new NFAState(this._ids.generate());
+        this._states = this._states.add(state);
         return state;
     }
 
-    deleteState(state: NFAState) {
-        this._states = this._states.filter((s) => s != state);
-        this._acceptStates.delete(state);
-        this._startStates.delete(state);
-    }
-
     matches(str: string): boolean {
-        let states = new Set<NFAState>();
-        for (let s of this._startStates) {
-            states.add(s);
-            for (let e of s.epsilonClosure) {
-                states.add(e);
-            }
-        }
+        let states = this._states
+            .filter((s) => s.start)
+            .flatMap((s) => s.epsilonClosure)
+            .toSet();
 
         for (let c of str) {
-            let newStates = new Set<NFAState>();
-
-            // For each state we are currently in, find all its transitions.
-            for (let s of states) {
-                let transitions = s.transitionsOn(c);
-
-                // Now add all of the states and their epsilon transitions
-                for (let t of transitions) {
-                    newStates.add(t);
-                    for (let e of t.epsilonClosure) {
-                        newStates.add(e);
-                    }
-                }
-            }
-
-            states = newStates;
+            states = states
+                .flatMap((s) => s.transitionsOn(c))
+                .flatMap((s) => s.epsilonClosure)
+                .toSet();
         }
 
         // If any of the states are accept states, accept.
-        return [...states].some((s) => this._acceptStates.has(s));
+        return states.some((s) => s.accept);
     }
 
     prettyPrint(): string {
-        let states = this._states;
-
         let msg = "";
 
-        for (let i = 0; i < states.length; i++) {
-            let s = states[i];
-
-            msg += `State ${i}:`;
-            if (this._startStates.has(s)) msg += " (start) ";
-            if (this._acceptStates.has(s)) msg += " (accept) ";
+        for (let state of this._states) {
+            msg += `State ${state.id}:`;
+            if (state.start) msg += " (start) ";
+            if (state.accept) msg += " (accept) ";
             msg += "\n";
 
-            for (let [to, on] of s.transitions) {
-                let toIdx = states.indexOf(to);
-                msg += `  --> ${toIdx} on ${on.prettyPrint()}\n`;
+            for (let [to, on] of state.transitions) {
+                msg += `  --> ${to.id} on ${on.prettyPrint()}\n`;
             }
             msg += "\n";
         }
