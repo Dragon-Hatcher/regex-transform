@@ -1,45 +1,21 @@
-function getStateImpl(state: NFAState): NFAStateImpl {
-    return (state as any).impl;
-}
+import { NFACharClass } from "./nfa-char-class";
 
 export class NFAState {
-    private impl: NFAStateImpl;
-
-    constructor(impl: NFAStateImpl) {
-        this.impl = impl;
-    }
-
-    public get accept(): boolean {
-        return this.impl.accept;
-    }
-    public set accept(accept: boolean) {
-        this.impl.accept = accept;
-    }
-    public get start(): boolean {
-        return this.impl.start;
-    }
-    public set start(start: boolean) {
-        this.impl.start = start;
-    }
-
-    public addTransitionTo(to: NFAState, condition: NFAEpsilonTransition) {
-        this.impl.addTransitionTo(to.impl, condition);
-    }
-}
-
-class NFAStateImpl {
-    private nfa: NFAImpl;
+    private _nfa: NFA;
     private _accept: boolean;
     private _start: boolean;
 
-    private _transitions: Map<NFAStateImpl, NFATransitionCondition> = new Map();
-    private _epsilonTransitions: Set<NFAStateImpl> = new Set();
-    private incomingTransitions: Set<NFAStateImpl> = new Set();
+    private _transitions: Map<NFAState, NFATransitionCondition> = new Map();
+    _epsilonTransitions: Set<NFAState> = new Set();
+    _incomingTransitions: Set<NFAState> = new Set();
 
-    constructor(nfa: NFAImpl) {
-        this.nfa = nfa;
+    constructor(nfa: NFA) {
+        this._nfa = nfa;
     }
 
+    get nfa(): NFA {
+        return this._nfa;
+    }
     get accept(): boolean {
         return this._accept;
     }
@@ -50,24 +26,24 @@ class NFAStateImpl {
     set accept(accept: boolean) {
         this._accept = accept;
         if (accept) {
-            this.nfa.acceptStates.add(this);
+            this._nfa._acceptStates.add(this);
         } else {
-            this.nfa.acceptStates.delete(this);
+            this._nfa._acceptStates.delete(this);
         }
     }
 
     set start(start: boolean) {
         this._start = start;
         if (start) {
-            this.nfa.startStates.add(this);
+            this._nfa._startStates.add(this);
         } else {
-            this.nfa.startStates.delete(this);
+            this._nfa._startStates.delete(this);
         }
     }
 
-    addTransitionTo(to: NFAStateImpl, condition: NFAEpsilonTransition) {
+    addTransitionTo(to: NFAState, condition: NFATransitionCondition) {
         this._transitions.set(to, condition);
-        to.incomingTransitions.add(this);
+        to._incomingTransitions.add(this);
 
         if (condition.isEpsilon) {
             this._epsilonTransitions.add(to);
@@ -76,8 +52,8 @@ class NFAStateImpl {
         }
     }
 
-    transitionsOn(char: string): Set<NFAStateImpl> {
-        let states = new Set<NFAStateImpl>();
+    transitionsOn(char: string): Set<NFAState> {
+        let states = new Set<NFAState>();
         for (let [to, on] of this._transitions) {
             if (on.matchesChar(char)) {
                 states.add(to);
@@ -86,9 +62,9 @@ class NFAStateImpl {
         return states;
     }
 
-    get epsilonClosure(): Set<NFAStateImpl> {
-        let set = new Set<NFAStateImpl>();
-        let toVisit: NFAStateImpl[] = [this];
+    get epsilonClosure(): Set<NFAState> {
+        let set = new Set<NFAState>();
+        let toVisit: NFAState[] = [this];
 
         while (toVisit.length > 0) {
             let next = toVisit.shift()!;
@@ -105,105 +81,60 @@ class NFAStateImpl {
         return set;
     }
 
-    get transitions(): Map<NFAStateImpl, NFATransitionCondition> {
+    get transitions(): Map<NFAState, NFATransitionCondition> {
         return this._transitions;
     }
 }
 
-export abstract class NFATransitionCondition {
-    abstract get isEpsilon(): boolean;
+export class NFATransitionCondition {
+    // The character set or null if it is an epsilon transition.
+    private _chars: NFACharClass | null;
 
-    abstract matchesChar(c: string): boolean;
-    abstract prettyPrint(): string;
-
-    static epsilon(): NFATransitionCondition {
-        return new NFAEpsilonTransition();
-    }
-
-    static singleChar(char: string): NFATransitionCondition {
-        return new NFASingleCharTransition(char);
-    }
-}
-
-class NFAEpsilonTransition extends NFATransitionCondition {
-    get isEpsilon(): boolean {
-        return true;
-    }
-
-    matchesChar(_: string): boolean {
-        return false;
-    }
-
-    prettyPrint(): string {
-        return "ε";
-    }
-}
-
-class NFASingleCharTransition extends NFATransitionCondition {
-    private char: string;
-
-    constructor(char: string) {
-        super();
-        this.char = char;
+    private constructor(chars: NFACharClass | null) {
+        this._chars = chars;
     }
 
     get isEpsilon(): boolean {
-        return false;
+        return this._chars == null;
     }
 
     matchesChar(c: string): boolean {
-        return c == this.char;
+        return this._chars?.includes(c) ?? false;
     }
 
     prettyPrint(): string {
-        return `'${this.char}'`;
+        return !this._chars ? "ε" : `'${this._chars.prettyPrint()}'`;
+    }
+
+    static epsilon(): NFATransitionCondition {
+        return new NFATransitionCondition(null);
+    }
+
+    static singleChar(char: string): NFATransitionCondition {
+        return new NFATransitionCondition(NFACharClass.single(char));
     }
 }
 
 export class NFA {
-    private impl: NFAImpl;
+    _states: NFAState[] = [];
+    _acceptStates: Set<NFAState> = new Set();
+    _startStates: Set<NFAState> = new Set();
 
-    constructor() {
-        this.impl = new NFAImpl();
-    }
-
-    public newState(): NFAState {
-        return new NFAState(this.impl.newState());
-    }
-
-    public deleteState(state: NFAState) {
-        this.impl.deleteState(getStateImpl(state));
-    }
-
-    public matches(str: string): boolean {
-        return this.impl.matches(str);
-    }
-
-    public prettyPrint(): string {
-        return this.impl.prettyPrint();
-    }
-}
-
-class NFAImpl {
-    states: NFAStateImpl[] = [];
-    acceptStates: Set<NFAStateImpl> = new Set();
-    startStates: Set<NFAStateImpl> = new Set();
-
-    newState(): NFAStateImpl {
-        let state = new NFAStateImpl(this);
-        this.states.push(state);
+    newState(): NFAState {
+        let state = new NFAState(this);
+        this._states.push(state);
         return state;
     }
 
-    deleteState(state: NFAStateImpl) {
-        this.states = this.states.filter((s) => s != state);
-        this.acceptStates.delete(state);
-        this.startStates.delete(state);
+    deleteState(state: NFAState) {
+        this._states = this._states.filter((s) => s != state);
+        this._acceptStates.delete(state);
+        this._startStates.delete(state);
     }
 
     matches(str: string): boolean {
-        let states = new Set<NFAStateImpl>();
-        for (let s of this.startStates) {
+        let states = new Set<NFAState>();
+        for (let s of this._startStates) {
             states.add(s);
             for (let e of s.epsilonClosure) {
                 states.add(e);
@@ -211,7 +142,7 @@ class NFAImpl {
         }
 
         for (let c of str) {
-            let newStates = new Set<NFAStateImpl>();
+            let newStates = new Set<NFAState>();
 
             // For each state we are currently in, find all its transitions.
             for (let s of states) {
@@ -230,11 +161,11 @@ class NFAImpl {
         }
 
         // If any of the states are accept states, accept.
-        return [...states].some((s) => this.acceptStates.has(s));
+        return [...states].some((s) => this._acceptStates.has(s));
     }
 
     prettyPrint(): string {
-        let states = this.states;
+        let states = this._states;
 
         let msg = "";
 
@@ -242,8 +173,8 @@ class NFAImpl {
             let s = states[i];
 
             msg += `State ${i}:`;
-            if (this.startStates.has(s)) msg += " (start) ";
-            if (this.acceptStates.has(s)) msg += " (accept) ";
+            if (this._startStates.has(s)) msg += " (start) ";
+            if (this._acceptStates.has(s)) msg += " (accept) ";
             msg += "\n";
 
             for (let [to, on] of s.transitions) {
