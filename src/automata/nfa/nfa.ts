@@ -1,5 +1,5 @@
 import { IDGenerator } from "../../util/ids";
-import { NFACharClass } from "./nfa-char-class";
+import { CharClass } from "../char-class";
 import { Set, Map } from "immutable";
 
 export class NFAState {
@@ -74,9 +74,9 @@ export class NFAState {
 
 export class NFATransitionCondition {
     // The character set or null if it is an epsilon transition.
-    private _chars: NFACharClass | null;
+    private _chars: CharClass | null;
 
-    private constructor(chars: NFACharClass | null) {
+    private constructor(chars: CharClass | null) {
         this._chars = chars;
     }
 
@@ -97,13 +97,21 @@ export class NFATransitionCondition {
     }
 
     static singleChar(char: string): NFATransitionCondition {
-        return new NFATransitionCondition(NFACharClass.single(char));
+        return new NFATransitionCondition(CharClass.single(char));
     }
 }
 
 export class NFA {
     private _ids = new IDGenerator();
     private _states: Set<NFAState> = Set();
+
+    get states(): Set<NFAState> {
+        return this._states;
+    }
+
+    get startStates(): Set<NFAState> {
+        return this._states.filter((s) => s.start);
+    }
 
     newState(): NFAState {
         let state = new NFAState(this._ids.generate());

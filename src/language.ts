@@ -1,9 +1,12 @@
+import { DFA } from "./automata/dfa/dfa";
+import { nfaToDFA } from "./automata/dfa/nfa-to-dfa";
 import { NFA } from "./automata/nfa/nfa";
 import { regexToNFA } from "./automata/nfa/regex-to-nfa";
 import { compileRegex } from "./regex-comp/compile";
 import { Pattern } from "./regex-comp/parse-tree";
 
 export class RegularLanguage {
+    private _dfa: DFA | null = null;
     private _nfa: NFA | null = null;
     private _regex: Pattern | null = null;
 
@@ -23,9 +26,17 @@ export class RegularLanguage {
         return compileRegex(source);
     }
 
+    public get dfa(): DFA {
+        if (this._dfa == null) {
+            this._dfa = nfaToDFA(this.nfa);
+        }
+
+        return this._dfa;
+    }
+
     public get nfa(): NFA {
         if (this._nfa == null) {
-            this._nfa = regexToNFA(this.regex);
+            this._nfa = this._regex != null ? regexToNFA(this.regex) : dfaToNFA(this.dfa);
         }
 
         return this._nfa;
@@ -33,13 +44,21 @@ export class RegularLanguage {
 
     public get regex(): Pattern {
         if (this._regex == null) {
-            throw Error("TODO: NFA to Regex");
+            this._regex = nfaToRegex(this.nfa);
         }
 
         return this._regex;
     }
 
     public matches(str: string): boolean {
-        return this.nfa.matches(str);
+        return this._dfa != null ? this.dfa.matches(str) : this.nfa.matches(str);
     }
+}
+
+function dfaToNFA(dfa: DFA): NFA {
+    throw Error("TODO: DFA to NFA");
+}
+
+function nfaToRegex(nfa: NFA): Pattern {
+    throw Error("TODO: NFA to Regex");
 }
