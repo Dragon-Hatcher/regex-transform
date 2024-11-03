@@ -64,7 +64,7 @@ export class DFA {
     }
 
     get states(): Set<DFAState> {
-        return this.states;
+        return this._states;
     }
 
     public newState(): DFAState {
