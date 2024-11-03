@@ -1,3 +1,5 @@
+import { CharClass } from "../automata/char-class";
+
 export interface Pattern {
     accept<T>(visitor: PatternVisitor<T>): T;
 }
@@ -8,12 +10,13 @@ export interface PatternVisitor<T> {
     visitAlternationPattern(p: AlternationPattern): T;
     visitKleeneStarPattern(p: KleeneStarPattern): T;
     visitEmpty(p: Pattern): T;
+    visitNull(p: Pattern): T;
 }
 
 export class LiteralPattern implements Pattern {
-    private _literal: string;
+    private _literal: CharClass;
 
-    constructor(literal: string) {
+    constructor(literal: CharClass) {
         this._literal = literal;
     }
 
@@ -89,9 +92,15 @@ export class EmptyPattern implements Pattern {
     }
 }
 
+export class NullPattern implements Pattern {
+    accept<T>(visitor: PatternVisitor<T>): T {
+        return visitor.visitNull(this);
+    }
+}
+
 export class PatternPrinter implements PatternVisitor<string> {
     visitLiteralPattern(p: LiteralPattern): string {
-        return `(lit '${p.literal}')`;
+        return `(lit '${p.literal.prettyPrint()}')`;
     }
 
     visitConcatPattern(p: ConcatPattern): string {
@@ -108,5 +117,35 @@ export class PatternPrinter implements PatternVisitor<string> {
 
     visitEmpty(p: Pattern): string {
         return `ε`;
+    }
+
+    visitNull(p: Pattern): string {
+        return `∅`;
+    }
+}
+
+export class RegexPatternPrinter implements PatternVisitor<string> {
+    visitLiteralPattern(p: LiteralPattern): string {
+        return p.literal.prettyPrint();
+    }
+
+    visitConcatPattern(p: ConcatPattern): string {
+        return p.patterns.map((p) => p.accept(this)).join("");
+    }
+
+    visitAlternationPattern(p: AlternationPattern): string {
+        return `(${p.left.accept(this)}|${p.right.accept(this)}`;
+    }
+
+    visitKleeneStarPattern(p: KleeneStarPattern): string {
+        return `(${p.base.accept(this)})*`;
+    }
+
+    visitEmpty(p: Pattern): string {
+        return `ε`;
+    }
+
+    visitNull(p: Pattern): string {
+        return `∅`;
     }
 }

@@ -1,3 +1,4 @@
+import { CharClass } from "../automata/char-class";
 import { Token, TokenType } from "./lex";
 import {
     AlternationPattern,
@@ -107,7 +108,7 @@ export class Parser {
 
     private parseAtom(): Pattern {
         if (this.match(TokenType.LITERAL)) {
-            return new LiteralPattern(this.previous().literal);
+            return new LiteralPattern(CharClass.single(this.previous().literal));
         }
 
         if (this.match(TokenType.L_PAREN)) {

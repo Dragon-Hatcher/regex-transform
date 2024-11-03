@@ -1,4 +1,5 @@
 import { RegularLanguage } from "./language";
+import { RegexPatternPrinter } from "./regex-comp/parse-tree";
 
 describe("test regular language", () => {
     test("test matching", () => {
@@ -37,5 +38,16 @@ describe("test regular language", () => {
         expect(lang.matches("b")).toBe(false);
         expect(lang.matches("aab")).toBe(false);
         expect(lang.matches("aabaa")).toBe(false);
+    });
+
+    test("test dfa construction", () => {
+        let lang = RegularLanguage.fromRegexStr("(abb*cc*)(abb*cc*)*");
+        console.log(lang.dfa.prettyPrint());
+    });
+
+    test("test nfa to regex construction", () => {
+        let lang1 = RegularLanguage.fromRegexStr("abc");
+        let lang2 = RegularLanguage.fromNFA(lang1.nfa);
+        console.log(lang2.regex.accept(new RegexPatternPrinter()));
     });
 });

@@ -2,6 +2,7 @@ import { DFA } from "./automata/dfa/dfa";
 import { nfaToDFA } from "./automata/dfa/nfa-to-dfa";
 import { dfaToNFA } from "./automata/nfa/dfa-to-nfa";
 import { NFA } from "./automata/nfa/nfa";
+import { nfaToRegex } from "./automata/nfa/nfa-to-regex";
 import { regexToNFA } from "./automata/nfa/regex-to-nfa";
 import { compileRegex } from "./regex-comp/compile";
 import { Pattern } from "./regex-comp/parse-tree";
@@ -54,8 +55,4 @@ export class RegularLanguage {
     public matches(str: string): boolean {
         return this._dfa != null ? this.dfa.matches(str) : this.nfa.matches(str);
     }
-}
-
-function nfaToRegex(nfa: NFA): Pattern {
-    throw Error("TODO: NFA to Regex");
 }

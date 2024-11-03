@@ -29,7 +29,7 @@ class NFAConverterVisitor implements PatternVisitor<StartAndEnd> {
         let inState = this.nfa.newState();
         let outState = this.nfa.newState();
 
-        this.nfa.addTransition(inState, outState, CharClass.single(p.literal));
+        this.nfa.addTransition(inState, outState, p.literal);
 
         return { inState, outState };
     }
@@ -72,5 +72,9 @@ class NFAConverterVisitor implements PatternVisitor<StartAndEnd> {
     visitEmpty(p: Pattern): StartAndEnd {
         let state = this.nfa.newState();
         return { inState: state, outState: state };
+    }
+
+    visitNull(p: Pattern): StartAndEnd {
+        return { inState: this.nfa.newState(), outState: this.nfa.newState() };
     }
 }
