@@ -1,5 +1,5 @@
 import { IDGenerator } from "../../util/ids";
-import { CharClass } from "../char-class";
+import { Alphabet, CharClass } from "../char-class";
 import { Set, Map } from "immutable";
 
 export class NFAState {
@@ -8,9 +8,8 @@ export class NFAState {
     private _accept: boolean;
     private _start: boolean;
 
-    private _transitions: Map<NFAState, NFATransitionCondition> = Map();
+    private _transitions: Map<CharClass, Set<NFAState>> = Map();
     private _epsilonTransitions: Set<NFAState> = Set();
-    private _incomingTransitions: Set<NFAState> = Set();
 
     constructor(id: number) {
         this._id = id;
@@ -25,7 +24,7 @@ export class NFAState {
     get start(): boolean {
         return this._start;
     }
-    get transitions(): Map<NFAState, NFATransitionCondition> {
+    get transitions(): Map<CharClass, Set<NFAState>> {
         return this._transitions;
     }
     get epsilonTransitions(): Set<NFAState> {
@@ -40,20 +39,30 @@ export class NFAState {
         this._start = start;
     }
 
-    addTransitionTo(to: NFAState, condition: NFATransitionCondition) {
-        this._transitions = this._transitions.set(to, condition);
-        to._incomingTransitions = to._incomingTransitions.add(this);
-
-        this._epsilonTransitions = condition.isEpsilon
-            ? this._epsilonTransitions.add(to)
-            : this._epsilonTransitions.delete(to);
+    refreshTransitions(alphabet: Alphabet) {
+        this._transitions = Map<CharClass, Set<NFAState>>().withMutations((newTransitions) => {
+            for (let symbol of alphabet.symbols) {
+                for (let [on, to] of this.transitions) {
+                    if (symbol.overlaps(on)) {
+                        let oldTo = newTransitions.get(symbol) ?? Set();
+                        newTransitions.set(symbol, oldTo.union(to));
+                    }
+                }
+            }
+        });
     }
 
-    transitionsOn(char: string): Set<NFAState> {
-        return this._transitions
-            .filter((on, _) => on.matchesChar(char))
-            .map((_, to) => to)
-            .toSet();
+    _unsafeAddTransition(to: NFAState, on: CharClass | null) {
+        if (on) {
+            let old = this._transitions.get(on) ?? Set();
+            this._transitions = this._transitions.set(on, old.add(to));
+        } else {
+            this._epsilonTransitions = this._epsilonTransitions.add(to);
+        }
+    }
+
+    transitionsOn(char: CharClass): Set<NFAState> {
+        return this._transitions.get(char) ?? Set();
     }
 
     get epsilonClosure(): Set<NFAState> {
@@ -72,37 +81,9 @@ export class NFAState {
     }
 }
 
-export class NFATransitionCondition {
-    // The character set or null if it is an epsilon transition.
-    private _chars: CharClass | null;
-
-    private constructor(chars: CharClass | null) {
-        this._chars = chars;
-    }
-
-    get isEpsilon(): boolean {
-        return this._chars == null;
-    }
-
-    matchesChar(c: string): boolean {
-        return this._chars?.includes(c) ?? false;
-    }
-
-    prettyPrint(): string {
-        return !this._chars ? "ε" : `'${this._chars.prettyPrint()}'`;
-    }
-
-    static epsilon(): NFATransitionCondition {
-        return new NFATransitionCondition(null);
-    }
-
-    static singleChar(char: string): NFATransitionCondition {
-        return new NFATransitionCondition(CharClass.single(char));
-    }
-}
-
 export class NFA {
     private _ids = new IDGenerator();
+    private _alphabet = new Alphabet();
     private _states: Set<NFAState> = Set();
 
     get states(): Set<NFAState> {
@@ -113,10 +94,30 @@ export class NFA {
         return this._states.filter((s) => s.start);
     }
 
+    get symbols(): Set<CharClass> {
+        return this._alphabet.symbols;
+    }
+
     newState(): NFAState {
         let state = new NFAState(this._ids.generate());
         this._states = this._states.add(state);
         return state;
+    }
+
+    private addSymbolToAlphabet(symbol: CharClass) {
+        if (!this._alphabet.requiresExpandingAlphabet(symbol)) return;
+
+        this._alphabet.expandToInclude(symbol);
+        for (let state of this._states) {
+            state.refreshTransitions(this._alphabet);
+        }
+    }
+
+    addTransition(from: NFAState, to: NFAState, on: CharClass | null) {
+        if (on) this.addSymbolToAlphabet(on);
+
+        let symbol = on ? this._alphabet.getSymbolForClass(on) : null;
+        from._unsafeAddTransition(to, symbol);
     }
 
     matches(str: string): boolean {
@@ -126,8 +127,10 @@ export class NFA {
             .toSet();
 
         for (let c of str) {
+            let symbol = this._alphabet.getSymbol(c);
+
             states = states
-                .flatMap((s) => s.transitionsOn(c))
+                .flatMap((s) => s.transitionsOn(symbol))
                 .flatMap((s) => s.epsilonClosure)
                 .toSet();
         }
@@ -145,8 +148,11 @@ export class NFA {
             if (state.accept) msg += " (accept) ";
             msg += "\n";
 
-            for (let [to, on] of state.transitions) {
-                msg += `  --> ${to.id} on ${on.prettyPrint()}\n`;
+            for (let [on, to] of state.transitions) {
+                msg += `  --> ${to.map((s) => s.id).join(", ")} on ${on.prettyPrint()}\n`;
+            }
+            if (!state.epsilonTransitions.isEmpty()) {
+                msg += `  --> ${state.epsilonTransitions.map((s) => s.id).join(", ")} on ε\n`;
             }
             msg += "\n";
         }

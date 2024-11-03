@@ -21,10 +21,21 @@ describe("test regular language", () => {
         expect(lang.matches("aad")).toBe(false);
 
         lang = RegularLanguage.fromRegexStr("(foo?)*");
+
         expect(lang.matches("foo")).toBe(true);
         expect(lang.matches("fo")).toBe(true);
         expect(lang.matches("fofoofofofoo")).toBe(true);
         expect(lang.matches("")).toBe(true);
         expect(lang.matches("ffoofofofoo")).toBe(false);
+
+        lang = RegularLanguage.fromRegexStr("a*");
+
+        expect(lang.matches("")).toBe(true);
+        expect(lang.matches("a")).toBe(true);
+        expect(lang.matches("aa")).toBe(true);
+        expect(lang.matches("aaaaa")).toBe(true);
+        expect(lang.matches("b")).toBe(false);
+        expect(lang.matches("aab")).toBe(false);
+        expect(lang.matches("aabaa")).toBe(false);
     });
 });

@@ -22,5 +22,24 @@ export function nfaToDFA(nfa: NFA): DFA {
         return dfaState;
     };
 
-    throw Error("TODO: NFA to DFA");
+    let queue = [nfaStartStates];
+    while (queue.length != 0) {
+        let currentStates = queue.pop()!;
+        let currentDfaState = getDFAState(currentStates);
+
+        currentDfaState.accept = currentStates.some((s) => s.accept);
+
+        for (let symbol of nfa.symbols) {
+            let goesTo = currentStates
+                .flatMap((s) => s.transitionsOn(symbol))
+                .flatMap((s) => s.epsilonClosure);
+
+            if (!stateMapping.has(goesTo)) queue.push(goesTo);
+
+            let dfaState = getDFAState(goesTo);
+            dfa.addTransition(currentDfaState, dfaState, symbol);
+        }
+    }
+
+    return dfa;
 }

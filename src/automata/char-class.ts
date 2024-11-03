@@ -11,6 +11,13 @@ export class Alphabet {
         return this._symbols;
     }
 
+    public getSymbol(char: string): CharClass {
+        return this._symbols.find((s) => s.includes(char))!;
+    }
+    public getSymbolForClass(char: CharClass): CharClass {
+        return this._symbols.find((s) => s.overlaps(char))!;
+    }
+
     /// Returns the set of `CharClass`es whose union forms the given character
     /// class.
     ///

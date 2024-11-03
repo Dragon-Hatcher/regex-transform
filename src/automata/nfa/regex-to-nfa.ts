@@ -6,7 +6,8 @@ import {
     Pattern,
     PatternVisitor,
 } from "../../regex-comp/parse-tree";
-import { NFA, NFAState, NFATransitionCondition } from "./nfa";
+import { CharClass } from "../char-class";
+import { NFA, NFAState } from "./nfa";
 
 export function regexToNFA(pattern: Pattern): NFA {
     let converter = new NFAConverterVisitor();
@@ -28,7 +29,7 @@ class NFAConverterVisitor implements PatternVisitor<StartAndEnd> {
         let inState = this.nfa.newState();
         let outState = this.nfa.newState();
 
-        inState.addTransitionTo(outState, NFATransitionCondition.singleChar(p.literal));
+        this.nfa.addTransition(inState, outState, CharClass.single(p.literal));
 
         return { inState, outState };
     }
@@ -37,7 +38,7 @@ class NFAConverterVisitor implements PatternVisitor<StartAndEnd> {
         let { inState, outState } = p.patterns[0].accept(this);
         for (let i = 1; i < p.patterns.length; i++) {
             let { inState: newIn, outState: newOut } = p.patterns[i].accept(this);
-            outState.addTransitionTo(newIn, NFATransitionCondition.epsilon());
+            this.nfa.addTransition(outState, newIn, null);
             outState = newOut;
         }
 
@@ -51,10 +52,10 @@ class NFAConverterVisitor implements PatternVisitor<StartAndEnd> {
         let inState = this.nfa.newState();
         let outState = this.nfa.newState();
 
-        inState.addTransitionTo(left.inState, NFATransitionCondition.epsilon());
-        inState.addTransitionTo(right.inState, NFATransitionCondition.epsilon());
-        left.outState.addTransitionTo(outState, NFATransitionCondition.epsilon());
-        right.outState.addTransitionTo(outState, NFATransitionCondition.epsilon());
+        this.nfa.addTransition(inState, left.inState, null);
+        this.nfa.addTransition(inState, right.inState, null);
+        this.nfa.addTransition(left.outState, outState, null);
+        this.nfa.addTransition(right.outState, outState, null);
 
         return { inState, outState };
     }
@@ -62,8 +63,8 @@ class NFAConverterVisitor implements PatternVisitor<StartAndEnd> {
     visitKleeneStarPattern(p: KleeneStarPattern): StartAndEnd {
         let { inState, outState } = p.base.accept(this);
 
-        inState.addTransitionTo(outState, NFATransitionCondition.epsilon());
-        outState.addTransitionTo(inState, NFATransitionCondition.epsilon());
+        this.nfa.addTransition(inState, outState, null);
+        this.nfa.addTransition(outState, inState, null);
 
         return { inState, outState };
     }
