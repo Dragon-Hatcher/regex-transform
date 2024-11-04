@@ -6,11 +6,18 @@ import { nfaToRegex } from "./automata/nfa/nfa-to-regex";
 import { regexToNFA } from "./automata/nfa/regex-to-nfa";
 import { compileRegex } from "./regex-comp/compile";
 import { Pattern } from "./regex-comp/parse-tree";
+import { invertDFA } from "./transforms/invert";
 
 export class RegularLanguage {
     private _dfa: DFA | null = null;
     private _nfa: NFA | null = null;
     private _regex: Pattern | null = null;
+
+    static fromDFA(dfa: DFA): RegularLanguage {
+        let lang = new RegularLanguage();
+        lang._dfa = dfa;
+        return lang;
+    }
 
     static fromNFA(nfa: NFA): RegularLanguage {
         let lang = new RegularLanguage();
@@ -54,5 +61,10 @@ export class RegularLanguage {
 
     public matches(str: string): boolean {
         return this._dfa != null ? this.dfa.matches(str) : this.nfa.matches(str);
+    }
+
+    public invert(): RegularLanguage {
+        let invertedDFA = invertDFA(this.dfa);
+        return RegularLanguage.fromDFA(invertedDFA);
     }
 }

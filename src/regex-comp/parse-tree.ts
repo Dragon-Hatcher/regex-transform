@@ -36,8 +36,20 @@ export class ConcatPattern implements Pattern {
         this._patterns = patterns;
     }
 
-    static empty(): ConcatPattern {
-        return new ConcatPattern([]);
+    static newSimp(patterns: Pattern[]): Pattern {
+        if (patterns.some((pat) => pat instanceof NullPattern)) {
+            return new NullPattern();
+        }
+
+        let noEpsilon = patterns.filter((pat) => !(pat instanceof EmptyPattern));
+
+        if (noEpsilon.length == 0) {
+            return new EmptyPattern();
+        } else if (noEpsilon.length == 1) {
+            return noEpsilon[0];
+        } else {
+            return new ConcatPattern(noEpsilon);
+        }
     }
 
     get patterns() {
@@ -58,6 +70,16 @@ export class AlternationPattern implements Pattern {
         this._right = right;
     }
 
+    static newSimple(left: Pattern, right: Pattern): Pattern {
+        if (left instanceof NullPattern) {
+            return right;
+        } else if (right instanceof NullPattern) {
+            return left;
+        } else {
+            return new AlternationPattern(left, right);
+        }
+    }
+
     get left() {
         return this._left;
     }
@@ -75,6 +97,14 @@ export class KleeneStarPattern implements Pattern {
 
     constructor(base: Pattern) {
         this._base = base;
+    }
+
+    static newSimple(base: Pattern): Pattern {
+        if (base instanceof EmptyPattern || base instanceof NullPattern) {
+            return new EmptyPattern();
+        }
+
+        return new KleeneStarPattern(base);
     }
 
     get base() {
@@ -134,7 +164,7 @@ export class RegexPatternPrinter implements PatternVisitor<string> {
     }
 
     visitAlternationPattern(p: AlternationPattern): string {
-        return `(${p.left.accept(this)}|${p.right.accept(this)}`;
+        return `(${p.left.accept(this)}|${p.right.accept(this)})`;
     }
 
     visitKleeneStarPattern(p: KleeneStarPattern): string {

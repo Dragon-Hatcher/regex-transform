@@ -67,7 +67,7 @@ export class DFA {
         return this._states;
     }
 
-    public newState(): DFAState {
+    newState(): DFAState {
         let state = new DFAState(this._ids.generate(), false);
         this._states = this._states.add(state);
         return state;
@@ -88,7 +88,7 @@ export class DFA {
         from._unsafeAddTransition(to, symbol);
     }
 
-    public matches(str: string): boolean {
+    matches(str: string): boolean {
         let state = this._startState;
 
         for (let c of str) {
@@ -99,6 +99,31 @@ export class DFA {
         }
 
         return state.accept;
+    }
+
+    copy(): DFA {
+        let n = new DFA();
+        n._alphabet = this._alphabet.copy();
+
+        let map = Map<DFAState, DFAState>();
+        map = map.set(this.startState, n.startState);
+        n.startState.accept = this.startState.accept;
+
+        for (let state of this.states) {
+            if (state != this.startState) {
+                let newState = n.newState();
+                newState.accept = state.accept;
+                map = map.set(state, newState);
+            }
+        }
+
+        for (let state of this.states) {
+            for (let [on, to] of state.transitions) {
+                n.addTransition(map.get(state)!, map.get(to)!, on);
+            }
+        }
+
+        return n;
     }
 
     prettyPrint(): any {

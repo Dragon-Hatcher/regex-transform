@@ -14,7 +14,10 @@ import { NFA } from "./nfa";
 export function nfaToRegex(nfa: NFA): Pattern {
     // https://cs.stackexchange.com/a/2392
 
-    let states = nfa.states.toArray();
+    let states = [
+        ...nfa.states.filter((s) => s.start).toArray(),
+        ...nfa.states.filter((s) => !s.start).toArray(),
+    ];
 
     let b: Pattern[] = states.map((s) => (s.accept ? new EmptyPattern() : new NullPattern()));
     let a: Pattern[][] = states.map((s1) =>
@@ -28,7 +31,7 @@ export function nfaToRegex(nfa: NFA): Pattern {
                 : new LiteralPattern(charTransition);
 
             if (s1.epsilonTransitions.has(s2)) {
-                pattern = new AlternationPattern(pattern, new EmptyPattern());
+                pattern = AlternationPattern.newSimple(pattern, new EmptyPattern());
             }
 
             return pattern;
@@ -36,23 +39,26 @@ export function nfaToRegex(nfa: NFA): Pattern {
     );
 
     for (let n = states.length - 1; n >= 0; n--) {
-        b[n] = new ConcatPattern([new KleeneStarPattern(a[n][n]), b[n]]);
+        b[n] = ConcatPattern.newSimp([KleeneStarPattern.newSimple(a[n][n]), b[n]]);
 
         for (let j = 0; j < n; j++) {
-            a[n][j] = new ConcatPattern([new KleeneStarPattern(a[n][n]), a[n][j]]);
+            a[n][j] = ConcatPattern.newSimp([KleeneStarPattern.newSimple(a[n][n]), a[n][j]]);
         }
 
         for (let i = 0; i < n; i++) {
-            b[i] = new AlternationPattern(b[i], new ConcatPattern([a[i][n], b[n]]));
+            b[i] = AlternationPattern.newSimple(b[i], ConcatPattern.newSimp([a[i][n], b[n]]));
             for (let j = 0; j < n; j++) {
-                a[i][j] = new AlternationPattern(a[i][j], new ConcatPattern([a[i][n], a[n][j]]));
+                a[i][j] = AlternationPattern.newSimple(
+                    a[i][j],
+                    ConcatPattern.newSimp([a[i][n], a[n][j]]),
+                );
             }
         }
     }
 
     let finalPattern = new NullPattern();
     for (let i = 0; i < states.length; i++) {
-        if (states[i].start) finalPattern = new AlternationPattern(finalPattern, b[i]);
+        if (states[i].start) finalPattern = AlternationPattern.newSimple(finalPattern, b[i]);
     }
 
     return simpRegex(finalPattern);

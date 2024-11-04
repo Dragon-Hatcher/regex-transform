@@ -48,6 +48,12 @@ export class Alphabet {
             }),
         );
     }
+
+    public copy(): Alphabet {
+        let n = new Alphabet();
+        n._symbols = this._symbols;
+        return n;
+    }
 }
 
 function nextChar(c: string): string {

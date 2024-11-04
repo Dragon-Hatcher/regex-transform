@@ -111,6 +111,10 @@ export class Parser {
             return new LiteralPattern(CharClass.single(this.previous().literal));
         }
 
+        if (this.match(TokenType.PERIOD)) {
+            return new LiteralPattern(CharClass.universal());
+        }
+
         if (this.match(TokenType.L_PAREN)) {
             let pattern = this.parsePattern();
             this.consume(TokenType.R_PAREN);

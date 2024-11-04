@@ -5,6 +5,7 @@ export const TokenType = {
     BAR: "BAR",
     STAR: "STAR",
     QUESTION: "QUESTION",
+    PERIOD: "PERIOD",
     EOF: "EOF",
 } as const;
 export type TokenType = (typeof TokenType)[keyof typeof TokenType];
@@ -76,6 +77,8 @@ export class Lexer {
                 return Token.of(TokenType.STAR);
             case "?":
                 return Token.of(TokenType.QUESTION);
+            case ".":
+                return Token.of(TokenType.PERIOD);
             default:
                 return Token.literal(char);
         }

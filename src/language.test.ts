@@ -40,14 +40,13 @@ describe("test regular language", () => {
         expect(lang.matches("aabaa")).toBe(false);
     });
 
-    test("test dfa construction", () => {
-        let lang = RegularLanguage.fromRegexStr("(abb*cc*)(abb*cc*)*");
-        console.log(lang.dfa.prettyPrint());
-    });
-
     test("test nfa to regex construction", () => {
         let lang1 = RegularLanguage.fromRegexStr("abc");
         let lang2 = RegularLanguage.fromNFA(lang1.nfa);
-        console.log(lang2.regex.accept(new RegexPatternPrinter()));
+        expect(lang2.regex.accept(new RegexPatternPrinter())).toBe("abc");
+
+        lang1 = RegularLanguage.fromRegexStr("ab|(dc)*");
+        lang2 = RegularLanguage.fromNFA(lang1.nfa);
+        expect(lang2.regex.accept(new RegexPatternPrinter())).toBe("(((ε|dc))*(ε|dc)|ab)");
     });
 });
